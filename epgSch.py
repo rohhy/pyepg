@@ -1,6 +1,6 @@
 from schEvent import Event
 from schStack import EventStack
-from epgdb import epgdb
+from epgdb import EpgDB
 from schTime import UTCTimeToString 
 import time
 import os
@@ -21,6 +21,7 @@ class EpgScheduler:
     self.tmBefore = 10*60
     self.tmAfter = 10*60
     self.tmIndex = 2*60
+    self.retryMax = 10
 
   def __del__(self):
     print "EpgScheduler Exit"
@@ -100,6 +101,9 @@ class EpgScheduler:
     failedPos = 0
     while stackPos < len(self.stack.stack):
       event = self.stack.stack[stackPos]
+      #eee = self.db.Epg(event.DBID)
+      #print "(unpack proble trace)m eee:", eee
+      #eventDB = Event(*eee)
       eventDB = Event(*self.db.Epg(event.DBID))
       tm = event.tmStart - time.time()
       print "tm1 tm:%s"%UTCTimeToString(time.time()+tm)
@@ -229,58 +233,56 @@ class EpgScheduler:
 
 
   #start recording
+  #todo: tzap tune channel, wait while dvbsnoop on channel do not detect program is running
   def StartRec(self, event):
-    #todo: tzap tune channel, wait while dvbsnoop on channel do not detect program is running
+    for retryNum in range(self.retryMax):
+      print "StartRec: starting a recording: %s"%event.ToString()
 
-    self.cardUsed = self.cardUsed + 1
-    print "StartRec: starting a recording: %s"%event.ToString()
+      #calculate recording time
+      lensec = event.tmDuration
+      if event.tmStart > time.time():                 #program didn't start => plus time before start
+        lensec = lensec + event.tmStart - time.time()
+      else:                                           #program is running => minus time running
+        lensec = lensec - (time.time() - event.tmStart)
+      lensec = lensec + self.tmAfter - self.tmIndex   #plus time after, minus time to index avi file
 
-    dev = self.cardUsed
+      fname = self.db.FileName(event.DBID) + ".avi"
+      if os.path.exists(self.dirRec + "/" + fname) or os.path.exists(self.dirArch + "/" + fname):
+        cntName = 0
+        while os.path.exists(self.dirArch + "/" + fname):
+          fname = self.db.FileName(event.DBID) + ".%03d.avi"%cntName
+          cntName = cntName + 1
+      event.fname = fname
 
-    #calculate recording time
-    lensec = event.tmDuration
-    if event.tmStart > time.time():                 #program didn't start => plus time before start
-      lensec = lensec + event.tmStart - time.time()
-    else:                                           #program is running => minus time running
-      lensec = lensec - (time.time() - event.tmStart)
-    lensec = lensec + self.tmAfter - self.tmIndex   #plus time after, minus time to index avi file
+      service = self.db.ServiceName(event.service)
+      serviceDic= {'_':' '}
+      service = self.db.ReplaceDict(service, serviceDic)
 
-    fname = self.db.FileName(event.DBID) + ".avi"
-    if os.path.exists(self.dirRec + "/" + fname) or os.path.exists(self.dirArch + "/" + fname):
-      cntName = 0
-      while os.path.exists(self.dirArch + "/" + fname):
-        fname = self.db.FileName(event.DBID) + ".%03d.avi"%cntName
-        cntName = cntName + 1
-    event.fname = fname
+      #start rec
+      recCmd="./StartRec.sh %d \"%s\" %d \"%s\" | grep PID: | cut -d \" \" -f2"%(self.cardUsed +1, service, lensec, self.dirRec +"/"+ fname)
+      print "StartRec cmd: %s"%recCmd
+      procRec = subprocess.Popen(recCmd, stdout=subprocess.PIPE, shell=True)
+      cmdPid = "ps aux"
 
-    service = self.db.Service(event.service)
-    serviceDic= {'_':' '}
-    service = self.db.ReplaceDict(service, serviceDic)
+      time.sleep(1)
+      pid=0 
+      procPid = subprocess.Popen(["ps", "aux"], stdout=subprocess.PIPE)
+      pidOut = procPid.communicate()[0]
+      pidLst = pidOut.split("\n")
+      for pidLn in pidLst:
+        if pidLn.find(service)!=-1 and pidLn.find("/bin/sh -c")==-1:
+          #print "pid found: %s"%pidLn
+          pid = int(pidLn.split(None)[1])
+          break
 
-    #start rec
-    recCmd="./StartRec.sh %d \"%s\" %d \"%s\" | grep PID: | cut -d \" \" -f2"%(dev, service, lensec, self.dirRec +"/"+ fname)
-    print "StartRec cmd: %s"%recCmd
-    procRec = subprocess.Popen(recCmd, stdout=subprocess.PIPE, shell=True)
-    cmdPid = "ps aux"
-
-    time.sleep(1)
-    pid=0 
-    procPid = subprocess.Popen(["ps", "aux"], stdout=subprocess.PIPE)
-    pidOut = procPid.communicate()[0]
-    pidLst = pidOut.split("\n")
-    for pidLn in pidLst:
-      if pidLn.find(service)!=-1 and pidLn.find("/bin/sh -c")==-1:
-        #print "pid found: %s"%pidLn
-        pid = int(pidLn.split(None)[1])
-        break
-
-    print "pidNew: %d"%pid
-    if pid == 0:
-      #event.type = event.FAILED
-      return False
+      #exit start when pid not zero, else retry (max. retryMax)
+      print "pidNew: %d"%pid
+      if pid > 0: break
+      print "pid is zero, retry start recording (attempt %d of %d)" %(retryNum, self.retryMax)
 
     event.pid = int(pid)
     event.type = event.RUN
+    self.cardUsed = self.cardUsed + 1
     return True
 
 

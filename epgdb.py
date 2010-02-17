@@ -1,16 +1,17 @@
-﻿#!/usr/bin/python
+#!/usr/bin/python
 import sqlite3
 import sys
 import os
 import time
 from schTime import UTCTimeToString
 from schEvent import Event
+import traceback
 
 class EpgDB:
 
   def __init__(self):
-    self.connection = sqlite3.connect("c:\\tmp\py\\epg\\next\\epg.db")
-    #self.connection = sqlite3.connect("/root/scripts/epg/epg.db")
+    #self.connection = sqlite3.connect("c:\\tmp\py\\epg\\next\\epg.db")
+    self.connection = sqlite3.connect("/root/scripts/epg/epg.db")
     self.cursor = self.connection.cursor()
 
 
@@ -159,41 +160,34 @@ class EpgDB:
 
   #Check database integrity - Find and remove all duplicit services (CT1, CT2, NOVA...)
   def __RemoveDuplicitServices(self):
-    sql = "SELECT * FROM SERVICE;"
-    try:
-      self.cursor.execute(sql)
-      services = self.cursor.fetchall()
-    except:
-      self.__Error("List services, sql:%s"%sql)
-      return
+    services = self.Services()
+    print "%d services found"%len(services)
 
-    if len(services) > 0:
-      print "%d services found"%len(services)
-
-    for service in services:
+    for serviceName in services:
+      serviceId = self.ServiceId(serviceName)
       eventsCnt = 0
-      sql = "SELECT * FROM EPG WHERE service_id==%d;"%service
+      sql = "SELECT COUNT(*) FROM EPG WHERE service_id=%d;"%serviceId
       try:
         self.cursor.execute(sql)
         events = self.cursor.fetchall()
-        eventsCnt = len(events)
+        eventsCnt = events[0][0]
       except:
         self.__Error("Serch service events, sql:%s"%sql)
         return
 
       if eventsCnt < 100:
-        print "suspicious service %s(=%d), only %d events."%(service[1], service[0], eventsCnt)
+        print "suspicious service %s, only %d events."%(serviceName, eventsCnt)
 
         #remove events and service
-        print "Remove service %s"%service[1]
+        print "Remove service %s"%serviceName
         try:
-          sql = "DELETE FROM EPG WHERE service_id==%d;"%service[0]
+          sql = "DELETE FROM EPG WHERE service_id=%d;"%serviceId
           self.cursor.execute(sql)
 
-          sql = "DELETE FROM SERVICE WHERE code==%d;"%service[0]
+          sql = "DELETE FROM SERVICE WHERE code=%d;"%serviceId
           self.cursor.execute(sql)
         except:
-          self.__Error("Remove service %s, sql:%s"%(service[1], sql))
+          self.__Error("Remove service %s, sql:%s"%(serviceName, sql))
           return
 
     self.connection.commit()
@@ -207,7 +201,7 @@ class EpgDB:
     self.cursor.execute(sql)
     epg = self.cursor.fetchall()
     if len(epg) == 0: raise Exception('SQL no results',sql)
-    return epg[0][0]
+    return epg[0]
 
   def Sname(self, sname_id):
     sql = "select sname from sname where id=%s"%sname_id
@@ -285,27 +279,66 @@ class EpgDB:
   #-----------------------------
 
   #Name table
-  #Find event by name like form time
-  def NameLike(self, name, from_tm = int(time.time())):
-    res = []
+
+  #Find events by name, lname and sname like from now ordered by time
+  def Like(self, name, from_tm = int(time.time())):
+    events = []
     search = "%" + name + "%"
-    sql = "select * from name where name like '%s' order by id"%search;
+    sql = "select id from epg where start_tm > %d and ( name_id in (select id from name where name like '%s') or sname_id in (select id from sname where sname like '%s') or lname_id in (select id from lname where lname like '%s') ) order by start_tm" %(from_tm, search, search, search)
     try:
       self.cursor.execute(sql)
       events = self.cursor.fetchall()
-      self.connection.commit()
-
-      for (event_id, event_name) in events:
-        epg = self.EpgByName(event_id)
-        (epg_id, event, service_id, start_tm, duration_tm, name_id, sname_id, lname_id, recording) = epg
-        if recording == 1: continue
-        if from_tm > (start_tm + duration_tm): continue
-
-        res.append(epg_id)
+      if len(events) == 0:
+        events = []
     except:
-      self.Error("Error event listing, sql:%s"%sql)
+      self.__Error("Error event listing, sql:%s"%sql)
       return
-    return res
+    return events
+
+  #Find event by name like form time
+  def NameLike(self, name, from_tm = int(time.time())):
+    events = []
+    search = "%" + name + "%"
+    sql = "select id from epg where start_tm > %d and name_id in (select id from name where name like '%s') order by start_tm" %(from_tm, search)
+    try:
+      self.cursor.execute(sql)
+      events = self.cursor.fetchall()
+      if len(events) == 0:
+        events = []
+    except:
+      self.__Error("Error event listing, sql:%s"%sql)
+      return
+    return events
+
+  #Find event by name like form time
+  def SnameLike(self, name, from_tm = int(time.time())):
+    events = []
+    search = "%" + name + "%"
+    sql = "select id from epg where start_tm > %d and sname_id in (select id from sname where sname like '%s') order by start_tm" %(from_tm, search)
+    try:
+      self.cursor.execute(sql)
+      events = self.cursor.fetchall()
+      if len(events) == 0:
+        events = []
+    except:
+      self.__Error("Error event listing, sql:%s"%sql)
+      return
+    return events
+
+  #Find event by name like form time
+  def LnameLike(self, name, from_tm = int(time.time())):
+    events = []
+    search = "%" + name + "%"
+    sql = "select id from epg where start_tm > %d and lname_id in (select id from lname where lname like '%s') order by start_tm" %(from_tm, search)
+    try:
+      self.cursor.execute(sql)
+      events = self.cursor.fetchall()
+      if len(events) == 0:
+        events = []
+    except:
+      self.__Error("Error event listing, sql:%s"%sql)
+      return
+    return events
 
   #Epg table
   def UpdateEpgRecording(self, epg_id, rec_val):
@@ -328,7 +361,7 @@ class EpgDB:
     self.cursor.execute(sql)
     epg = self.cursor.fetchall()
     if len(epg) == 0: raise Exception('SQL no results',sql)
-    return epg[0][0]
+    return epg[0]
 
   def EpgRunningAll(self):
     sql = "SELECT * FROM EPG WHERE recording=%d"%Event.RUN
@@ -344,7 +377,7 @@ class EpgDB:
 
   #depreaced
   def EpgSetState(self, id, state):
-    UpdateEpgRecording(id, state)
+    self.UpdateEpgRecording(id, state)
 
   def EpgReadyAll(self, tmStart):
     if tmStart == 0:
@@ -380,7 +413,7 @@ class EpgDB:
   def FileName(self, epg_id):
     event = Event(*self.Epg(epg_id))
 
-    service = self.Service(event.service)
+    service = self.ServiceName(event.service)
     name = self.Name(event.name)
 
     tm = UTCTimeToString(event.tmStart)

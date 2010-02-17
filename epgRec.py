@@ -2,7 +2,7 @@ from __future__ import with_statement
 import time
 import os
 import signal
-from epgsch import EpgSch
+from epgSch import EpgScheduler
 from schTime import RAWTimeToString, UTCTimeToString
 import thread
 import subprocess
@@ -18,7 +18,7 @@ def SIGINT_Handler(signum, stack):
 
 
 if __name__ == "__main__":
-  sch = EpgSch()
+  sch = EpgScheduler()
   lock = thread.allocate_lock()
 
   signal.signal(signal.SIGUSR1, SIGUSR1_Handler)

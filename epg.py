@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import sys, time
 import sqlite3
 import mjd       # Modified Julian Date to tuple (y,m,d)
