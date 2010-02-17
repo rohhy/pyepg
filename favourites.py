@@ -2,7 +2,7 @@
 import epgdb
 
 if __name__ == '__main__':
-  db = EpgDB('epg.db')
+  db = EpgDB()
   epgs = db.FindNameLike('Retro')
 
   for event_id in epgs:

@@ -8,13 +8,9 @@ from schEvent import Event
 
 class EpgDB:
 
-  def __init__(self, dbFileName):
-    exists = os.path.exists(dbFileName)
-    self.connection = sqlite3.connect(dbFileName)
+  def __init__(self):
+    self.connection = sqlite3.connect("c:\\tmp\py\\epg\\next\\epg.db")
     self.cursor = self.connection.cursor()
-
-    if exists == False:
-      self.Init()
 
 
   def __del__(self):
@@ -119,6 +115,9 @@ class EpgDB:
     return
 
 
+  ######################################################
+  # manage DB
+
   #Check database integrity
   def Check(self):
     print "Checking database integrity"
@@ -172,7 +171,7 @@ class EpgDB:
 
     for service in services:
       eventsCnt = 0
-      sql = "SELECT * FROM EPG WHERE service_id==%d;"%service[0]
+      sql = "SELECT * FROM EPG WHERE service_id==%d;"%service
       try:
         self.cursor.execute(sql)
         events = self.cursor.fetchall()
@@ -230,14 +229,48 @@ class EpgDB:
     if len(name) == 0: raise Exception('SQL no results',sql)
     return name[0][0]
 
-  #convert service id to text
-  def Service(self, service_id):
+  #convert service id to service in a RAW DB COLUMN form
+  def ServiceNameRaw(self, service_id):
     sql = "SELECT service FROM SERVICE WHERE code=%d"%service_id
     self.cursor.execute(sql)
-    service = self.cursor.fetchall()
-    if len(service) == 0:
+    return self.cursor.fetchall()
+
+  #safe convert service id to text
+  def ServiceName(self, service_id):
+    ret = self.ServiceNameRaw(service_id)
+    if len(ret) == 0:
       return "0x%x"%service_id
-    return service[0][0]
+    return ret[0][0]
+
+  #convert service id to service in a RAW DB COLUMN form
+  def ServiceIdRaw(self, service_name):
+    sql = "SELECT code FROM SERVICE WHERE service=\"%s\""%service_name
+    self.cursor.execute(sql)
+    return self.cursor.fetchall()
+
+  #safe convert service id to text
+  def ServiceId(self, service_name):
+    ret = self.ServiceIdRaw(service_name)
+    if len(ret) == 0:
+      msg = "Service name \"%s\" not found"%service_name
+      raise Exception(msg)
+    return ret[0][0]
+
+  #list all services in a RAW DB COLUMN form
+  def ServicesRaw(self):
+    sql = "SELECT * FROM SERVICE"
+    self.cursor.execute(sql)
+    return self.cursor.fetchall()
+
+  #safe list all services
+  def Services(self):
+    ret1 = self.ServicesRaw()
+    if len(ret1) == 0: return []
+    ret2 = []
+    for s in ret1:
+      ret2.append(s[1])
+    return ret2
+
 
   def Favourites(self, fav_id):
     sql = "select regexp from favourites where id=%s"%fav_id
@@ -274,6 +307,21 @@ class EpgDB:
     return res
 
   #Epg table
+  def UpdateEpgRecording(self, epg_id, rec_val):
+    sql = "UPDATE EPG SET recording=%d WHERE id=\"%d\";" % (rec_val, epg_id)
+    self.cursor.execute(sql)
+    self.connection.commit()
+
+  def EpgRawByServiceTime(self, service_id, start_tm):
+    sql = "SELECT * FROM EPG WHERE service_id == %d and start_tm == %d;"%(service_id, start_tm)
+    self.cursor.execute(sql)
+    return self.cursor.fetchall()
+
+  def EpgRawByServiceTimeInterval(self, service_id, start_tm, end_tm):
+    sql = "SELECT * FROM EPG WHERE service_id==%d and start_tm > %d and start_tm < %d ORDER BY start_tm;"%(service_id, start_tm, end_tm)
+    self.cursor.execute(sql)
+    return self.cursor.fetchall()
+
   def EpgByName(self, epg_id):
     sql = "select * from epg where name_id=%s"%epg_id
     self.cursor.execute(sql)
@@ -293,11 +341,9 @@ class EpgDB:
     if len(epg) == 0: raise Exception('SQL no results',sql)
     return epg
 
+  #depreaced
   def EpgSetState(self, id, state):
-    sql = "UPDATE EPG SET recording=%d WHERE id=%d"%(state, id)
-    self.cursor.execute(sql)
-    self.connection.commit()
-    return
+    UpdateEpgRecording(id, state)
 
   def EpgReadyAll(self, tmStart):
     if tmStart == 0:
@@ -315,6 +361,11 @@ class EpgDB:
     if len(fav) == 0: raise Exception('SQL no results',sql)
     return fav[0]
 
+  #def EpgReadyRawByNameTime(name_id, start_tm, duration_tm):
+  def EpgConflicts(self, name_id, start_tm, duration_tm):
+    sql = "SELECT * FROM EPG WHERE name_id!=%d and recording>=1 and ( (start_tm>%d and start_tm<%d) or ((start_tm+duration_tm)>%d and (start_tm+duration_tm)<%d) or ((start_tm)<=%d and (start_tm+duration_tm)>=%d) );"%(name_id, start_tm, start_tm + duration_tm, start_tm, start_tm + duration_tm, start_tm, start_tm + duration_tm)
+    self.cursor.execute(sql)
+    return self.cursor.fetchall()
 
   #Database facility support functions
   #-----------------------------

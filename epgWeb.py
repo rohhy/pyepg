@@ -1,4 +1,4 @@
-#dvb-t epg database interface module for phspd https server
+# phspd https server -  dvb-t epg database interface
 
 import string,cgi,time
 import traceback,sys #error handling
@@ -7,11 +7,6 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 import sqlite3
 import sys
-
-epgModulesPath = "c:\\tmp\\py\\epg\\next\\"
-
-#import real modules
-sys.path.append(realModulesPath)
 from epgdb import EpgDB
 
 
@@ -21,8 +16,7 @@ class epgWeb:
       self.cardsCount = 2
 
       print "connecting epg db..."
-      self.epgDBPath = epgModulesPath + "epg.db"      #self.epgDBPath = "/root/epg/epg.db"
-      self.db = EpgDB(self.epgDBPath)
+      self.db = EpgDB()
 
       return
 
