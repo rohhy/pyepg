@@ -82,6 +82,7 @@ class EpgDB:
   #Cerate database
   def __Create(self):
     try:
+      #epg database
       sql = "CREATE TABLE SERVICE (code, service TEXT)"
       self.cursor.execute(sql)
 
@@ -99,6 +100,13 @@ class EpgDB:
 
       self.connection.commit()
       self.connection.close()
+
+      #favorites database
+      sql = "CREATE TABLE FAVOURITES (id INTEGER PRIMARY KEY, regexp_id INTEGER)"
+      self.cursor.execute(sql)
+
+      sql = "CREATE TABLE FAVREGEXPS (id INTEGER PRIMARY KEY, regexp TEXT)"
+      self.cursor.execute(sql)
 
     except:
       print str(sys.exc_info())
@@ -201,20 +209,6 @@ class EpgDB:
     if len(epg) == 0: raise Exception('SQL no results',sql)
     return epg[0][0]
 
-  def EpgByName(self, epg_id):
-    sql = "select * from epg where name_id=%s"%epg_id
-    self.cursor.execute(sql)
-    epg = self.cursor.fetchall()
-    if len(epg) == 0: raise Exception('SQL no results',sql)
-    return epg[0][0]
-
-  def EpgAll(self):
-    sql = "SELECT * FROM EPG"
-    self.cursor.execute(sql)
-    epg = self.cursor.fetchall()
-    if len(epg) == 0: raise Exception('SQL no results',sql)
-    return epg
-
   def Sname(self, sname_id):
     sql = "select sname from sname where id=%s"%sname_id
     self.cursor.execute(sql)
@@ -245,10 +239,18 @@ class EpgDB:
       return "0x%x"%service_id
     return service[0][0]
 
+  def Favourites(self, fav_id):
+    sql = "select regexp from favourites where id=%s"%fav_id
+    self.cursor.execute(sql)
+    fav = self.cursor.fetchall()
+    if len(fav) == 0: raise Exception('SQL no results',sql)
+    return fav[0][0]
+
 
   #Advanced search database functions
   #-----------------------------
 
+  #Name table
   #Find event by name like form time
   def NameLike(self, name, from_tm = int(time.time())):
     res = []
@@ -271,43 +273,60 @@ class EpgDB:
       return
     return res
 
-  def EpgRunning(self):
+  #Epg table
+  def EpgByName(self, epg_id):
+    sql = "select * from epg where name_id=%s"%epg_id
+    self.cursor.execute(sql)
+    epg = self.cursor.fetchall()
+    if len(epg) == 0: raise Exception('SQL no results',sql)
+    return epg[0][0]
+
+  def EpgRunningAll(self):
     sql = "SELECT * FROM EPG WHERE recording=%d"%Event.RUN
     self.cursor.execute(sql)
     return self.cursor.fetchall()
 
-  def GetID(self, _id):
-    sql = "SELECT * FROM EPG WHERE id=%d"%_id
+  def EpgAll(self):
+    sql = "SELECT * FROM EPG"
     self.cursor.execute(sql)
-    return self.cursor.fetchall()[0]
+    epg = self.cursor.fetchall()
+    if len(epg) == 0: raise Exception('SQL no results',sql)
+    return epg
 
-  def GetReady(self, tmStart):
-    if tmStart == 0:
-      sql = "SELECT * FROM EPG WHERE start_tm+duration_tm > %d and recording=%d ORDER BY start_tm LIMIT 1"%(time.time(), Event.READY)
-    else:
-      sql = "SELECT * FROM EPG WHERE start_tm+duration_tm > %d and start_tm > %d and recording = %d ORDER BY start_tm LIMIT 1"%(time.time(), tmStart, Event.READY)
-    #print "sql: %s"%sql
-    self.cursor.execute(sql)
-    return self.cursor.fetchall()
-
-
-  def SetState(self, id, state):
+  def EpgSetState(self, id, state):
     sql = "UPDATE EPG SET recording=%d WHERE id=%d"%(state, id)
-    #print sql
     self.cursor.execute(sql)
     self.connection.commit()
     return
 
+  def EpgReadyAll(self, tmStart):
+    if tmStart == 0:
+      sql = "SELECT * FROM EPG WHERE start_tm+duration_tm > %d and recording=%d ORDER BY start_tm LIMIT 1"%(time.time(), Event.READY)
+    else:
+      sql = "SELECT * FROM EPG WHERE start_tm+duration_tm > %d and start_tm > %d and recording = %d ORDER BY start_tm LIMIT 1"%(time.time(), tmStart, Event.READY)
+    self.cursor.execute(sql)
+    return self.cursor.fetchall()
+
+  #Favourites table
+  def FavouritesAll(self):
+    sql = "select regexp_id from favourites"
+    self.cursor.execute(sql)
+    fav = self.cursor.fetchall()
+    if len(fav) == 0: raise Exception('SQL no results',sql)
+    return fav[0]
+
+
+  #Database facility support functions
+  #-----------------------------
 
   def ReplaceDict(self, text, dic):
     for i, j in dic.iteritems():
       text = text.replace(i, j)
     return text
 
-
-  #format file name based on event name,date and service
+  #Format file name based on event name,date and service
   def FileName(self, epg_id):
-    event = Event(*self.GetID(epg_id))
+    event = Event(*self.Epg(epg_id))
 
     service = self.Service(event.service)
     name = self.Name(event.name)

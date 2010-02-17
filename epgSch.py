@@ -49,7 +49,7 @@ class EpgScheduler:
   #Check validity and start recording
   def CheckRunning(self):
     print "Checking running ..."
-    res = self.db.EpgRunning()
+    res = self.db.EpgRunningAll()
     if len(res) > 0:
       print "total %d runnings found"%len(res)
       runCnt = 0
@@ -61,13 +61,13 @@ class EpgScheduler:
           if self.cardUsed >= self.cardCount:
             print "%d: Recording failed (3), no free recording device"%runCnt
             continue
-          self.db.SetState(event.DBID, Event.RUN)
+          self.db.EpgSetState(event.DBID, Event.RUN)
           event.type = event.RUN
           self.stack.Add(event)
           self.StartRec(event)
         else:
           print "%d: set db as failed: %s"%(runCnt, event.ToString())
-          self.db.SetState(event.DBID, Event.FAILED)
+          self.db.EpgSetState(event.DBID, Event.FAILED)
         runCnt = runCnt +1
     return
 
@@ -82,7 +82,7 @@ class EpgScheduler:
     readyDB = -1
     readyStack = -1
 
-    res = self.db.GetReady(0)                               # najdi prvni READY nebo RUN v DB
+    res = self.db.EpgReadyAll(0)                               # najdi prvni READY nebo RUN v DB
     if len(res) > 0:
       readyDB = Event(*res[0])
       print "readyDB: %s"%(readyDB.ToString())
@@ -100,7 +100,7 @@ class EpgScheduler:
     failedPos = 0
     while stackPos < len(self.stack.stack):
       event = self.stack.stack[stackPos]
-      eventDB = Event(*self.db.GetID(event.DBID))
+      eventDB = Event(*self.db.Epg(event.DBID))
       tm = event.tmStart - time.time()
       print "tm1 tm:%s"%UTCTimeToString(time.time()+tm)
 
@@ -124,7 +124,7 @@ class EpgScheduler:
           self.StopRec(event)
           if failedPos > 0: stackPos = failedPos           #  retry when RUN found and failed
         self.stack.Del(event)
-        self.db.SetState(event.DBID, event.DONE)
+        self.db.EpgSetState(event.DBID, event.DONE)
         #stackPos = stackPos +1                            #  do not increment position, stack cutted
         continue
 
@@ -136,12 +136,12 @@ class EpgScheduler:
           continue
         if tm - self.tmBefore <= 0:                        #   READY -> RUN
           if self.cardUsed >= self.cardCount:              #     no device
-            #self.db.SetState(event.DBID, event.FAILED)    #     keep READY, RUN when device released
+            #self.db.EpgSetState(event.DBID, event.FAILED)    #     keep READY, RUN when device released
             print "%d: recording failed (1), no device"%stackPos
             failedPos = stackPos
           else:
             print "%d: READY -> RUN"%stackPos
-            self.db.SetState(readyDB.DBID, Event.RUN)
+            self.db.EpgSetState(readyDB.DBID, Event.RUN)
             event.type = event.RUN
             self.StartRec(event)
             tm = tm + event.tmDuration + self.tmAfter
@@ -199,7 +199,7 @@ class EpgScheduler:
               print "%d: Recording failed (2), no device"%dbPos
               break
             print "%d: READY -> RUN"%stackPos
-            self.db.SetState(readyDB.DBID, Event.RUN)
+            self.db.EpgSetState(readyDB.DBID, Event.RUN)
             readyDB.type = Event.RUN
             self.stack.Add(readyDB)
             self.StartRec(readyDB)
@@ -218,7 +218,7 @@ class EpgScheduler:
         print "tmWait%s"%UTCTimeToString(time.time()+tmWait)
 
         if found == False:                             #  search next READY form the DB
-          res = self.db.GetReady(readyDB.tmStart)
+          res = self.db.EpgReadyAll(readyDB.tmStart)
           if len(res) == 0: readyDB = -1
           else:
             readyDB = Event(*res[0])
