@@ -2,7 +2,7 @@ from __future__ import with_statement
 import time
 import os
 import signal
-from epgScheduler import EpgScheduler
+from epgsch import EpgSch
 from schTime import RAWTimeToString, UTCTimeToString
 import thread
 import subprocess
@@ -15,11 +15,10 @@ def SIGINT_Handler(signum, stack):
   print "Ctrl-C received, exit"
   global Exit
   Exit = True
-  #signal.alarm(0)
 
 
 if __name__ == "__main__":
-  sch = EpgScheduler()
+  sch = EpgSch()
   lock = thread.allocate_lock()
 
   signal.signal(signal.SIGUSR1, SIGUSR1_Handler)
