@@ -10,6 +10,7 @@ class EpgDB:
 
   def __init__(self):
     self.connection = sqlite3.connect("c:\\tmp\py\\epg\\next\\epg.db")
+    #self.connection = sqlite3.connect("/root/scripts/epg/epg.db")
     self.cursor = self.connection.cursor()
 
 

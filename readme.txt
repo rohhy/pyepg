@@ -7,6 +7,7 @@ v2.5
   - epg-Txt.py replaced by epgdb2txt.py and removed from epg.sh
   - removed obsolete epg-plan.py
   - removed obsolete epg-service.py
+  - add beta favorites
 
 v2.0a
   - webserver.py send SIGUSR to reload database
