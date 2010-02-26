@@ -1,3 +1,6 @@
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 To enable port 80 forwarding at OpenWRT: OpenWrt@root:~/scripts$iptables 
 -t nat -A prerouting_wan -p tcp --dport 80 -j DNAT --to 10.0.3.100:80 OpenWrt@root:~/scripts$iptables -A forwarding_wan -p tcp --dport 80 -d 10.0.3.100 -j ACCEPT
 

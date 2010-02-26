@@ -1,4 +1,7 @@
 #!/usr/local/bin/python
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 # TUNE="PRIMA,CT 1,Z1,CT1 (HD Test)"
 
 import sqlite3

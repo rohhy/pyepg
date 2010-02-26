@@ -1,5 +1,10 @@
+#!/usr/bin/python
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 #Modified Julian Data conversion
 # ETSI EN 300 468 - ANNEX C
+
 def mjd2time(mjd):
   k=0
   y =  int((mjd  - 15078.2) / 365.25)

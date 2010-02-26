@@ -1,4 +1,7 @@
 #!/bin/bash
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 if [ -z "$1" -o -z "$2" ]; then echo "usage: $0 <pid> <file name>"; exit 1; fi
 RECPID="$1"
 FOUT="$2"

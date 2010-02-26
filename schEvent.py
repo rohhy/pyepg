@@ -1,3 +1,7 @@
+#!/usr/bin/python
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 import time
 from schTime import UTCTimeToString, RAWTimeToString
 

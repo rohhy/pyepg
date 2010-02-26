@@ -1,6 +1,8 @@
 #!/usr/local/bin/python
-#Copyright Jan Rohacek, rohhy@volny.cz
-#http://www.technicalinfo.net/papers/WebBasedSessionManagement.html
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
+#This script is based on http://www.technicalinfo.net/papers/WebBasedSessionManagement.html
 
 import string,cgi,time
 import traceback,sys #error handling

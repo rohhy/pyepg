@@ -1,4 +1,7 @@
 #!/bin/bash
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 #Input: free CPU time in seconds
 #This script reencode all audio files to mp3 with 128kb bitrate
 #Exit when finish or no free time

@@ -1,4 +1,7 @@
 #!/bin/bash
+#Copyright Jan Rohacek 2010
+#This program is distributed under the terms of the GNU General Public License.
+
 if [ -z "$1" -o -z "$2" -o -z "$3" -o -z "$4" ]; then
   echo "usage: $0 <adapter> <service> <sec> <file name>"
   echo "example: StartRec.sh 2 \"CT 1\" 20 ct1.avi"
