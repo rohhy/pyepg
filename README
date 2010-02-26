@@ -1,0 +1,41 @@
+Python DVB-T Recorder, version 0
+
+1) Install instructions
+1.1) Install other sw
+       python version 2.6 (not the version 3 or higher)
+       dvbsnoop
+       sqlite version 3 or higher
+
+1.2) Install at least one DVB-T cards to get /dev/dvbt/adapter0
+1.3) Get pyepg sources from github:
+       git clone git@github.com:rohhy/pyepg.git
+
+1.4) Create new epg datbase (db) python epg-dbinit.py
+
+1.5) Scan for EPG info from your DVB-T device with: eph.sh
+
+1.6) Check db validity with: ptyohn epgdbchk.py
+
+1.7) Configure (investigation needed, no configuration file)
+       database file path - epgdb.py
+          - default path is project directory
+
+       directory for backup epg databases
+          - default path /mnt/flash
+
+       path to recording temp directory (1.5GB free)
+          - somewhere in .py files
+          - default /mnt/flash/rec
+
+       path to a directory for movie files saving (7GB for full 24h recording)
+          - default /mnt/flash/moviez
+
+1.8) Run recording with (using screen tool):
+       while true; do python epgRec.py; done
+
+1.9) Install phspd when you need HTTPS Web interface to your pyepg form:
+       git@github.com:rohhy/pyphsp.git
+
+Any participation is welcome!
+Have fun...
+Jan Rohacek
